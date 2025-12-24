@@ -19,7 +19,7 @@
   </p>
 
   <h3>
-    <a href="#">🟢 View Demo (https://milkt.netlify.app/)</a>
+    <a href="https://milkt.netlify.app/">🟢 View Demo
   </h3>
 </div>
 
