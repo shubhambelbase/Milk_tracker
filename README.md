@@ -5,7 +5,7 @@
   <br />
   <br />
 
-  <h1>🥛 MILK_TRACKER_PRO</h1>
+  <h1>🥛 MILK TRACKER</h1>
   
   <p>
     <strong>Aesthetic daily dairy log. Automatic cost calculation. Zero friction.</strong>
@@ -19,7 +19,7 @@
   </p>
 
   <h3>
-    <a href="#">🟢 View Demo (Open index.html)</a>
+    <a href="#">🟢 View Demo ([Open index.html](https://milkt.netlify.app/))</a>
   </h3>
 </div>
 
