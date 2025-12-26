@@ -14,6 +14,7 @@
             --text-muted: rgba(255, 255, 255, 0.7);
             --accent: #00d2ff;
             --success: #00ff9d;
+            --danger: #ff4b4b;
             --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
@@ -153,6 +154,15 @@
             transition: background 0.3s;
         }
 
+        /* Pointer for total card */
+        #totalCard {
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        #totalCard:active {
+            transform: scale(0.98);
+        }
+
         .stat-val {
             font-size: 1rem;
             font-weight: 700;
@@ -269,7 +279,6 @@
         /* Form Elements & Sliders */
         .form-group { margin-bottom: 16px; }
 
-        /* Range Slider Styling */
         input[type="range"] {
             -webkit-appearance: none;
             width: 100%;
@@ -374,8 +383,23 @@
             cursor: pointer;
             transition: transform 0.1s;
         }
-
         .btn-primary:active { transform: scale(0.98); }
+
+        /* Clear Button Style */
+        .btn-danger {
+            width: 100%;
+            padding: 16px;
+            background: rgba(255, 75, 75, 0.15);
+            color: #ff4b4b;
+            border: 1px solid rgba(255, 75, 75, 0.3);
+            border-radius: 16px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: transform 0.1s;
+        }
+        .btn-danger:active { transform: scale(0.98); background: rgba(255, 75, 75, 0.25); }
 
         svg { pointer-events: none; fill: currentColor; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -414,9 +438,9 @@
                 <span class="stat-val" id="totalQty">0</span>
                 <span class="stat-label">Liters</span>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" id="totalCard">
                 <span class="stat-val money" id="totalAmt">0</span>
-                <span class="stat-label">Total</span>
+                <span class="stat-label" id="totalLabel">Total</span>
             </div>
         </div>
 
@@ -478,6 +502,7 @@
                     <input type="number" id="priceInput" placeholder="Enter price (e.g. 90)" step="0.01">
                 </div>
                 <button class="btn-primary" id="saveSettingsBtn">Save Settings</button>
+                <button class="btn-danger" id="clearAllBtn">Clear All History</button>
             </div>
         </div>
     </div>
@@ -489,6 +514,7 @@
         let events = localStorage.getItem('milkEvents') ? JSON.parse(localStorage.getItem('milkEvents')) : {};
         let pricePerLiter = localStorage.getItem('milkPrice') ? parseFloat(localStorage.getItem('milkPrice')) : 0;
         let currentQty = 1.0;
+        let showAllTimeTotal = false;
 
         // DOM
         const calendar = document.getElementById('calendarDays');
@@ -497,6 +523,10 @@
         const daysCountEl = document.getElementById('daysCount');
         const totalQtyEl = document.getElementById('totalQty');
         const totalAmtEl = document.getElementById('totalAmt');
+        
+        // Total Card
+        const totalCard = document.getElementById('totalCard');
+        const totalLabel = document.getElementById('totalLabel');
         
         // Modal DOM
         const entryModal = document.getElementById('entryModal');
@@ -514,6 +544,7 @@
         
         // Settings Inputs
         const priceInput = document.getElementById('priceInput');
+        const clearAllBtn = document.getElementById('clearAllBtn'); // New
 
         init();
 
@@ -522,22 +553,28 @@
             document.getElementById('nextBtn').addEventListener('click', () => { nav++; load(); });
             document.getElementById('prevBtn').addEventListener('click', () => { nav--; load(); });
             
-            // Month Slider Logic
+            // Month Slider
             monthSlider.addEventListener('input', (e) => {
                 const targetMonth = parseInt(e.target.value);
                 const currentDt = new Date();
                 const currentMonth = currentDt.getMonth();
                 const diff = targetMonth - currentMonth;
                 nav = diff; 
-                // Note: This slider is absolute for the current year relative to "now". 
-                // Ideally used for quick scrubbing within the same year logic.
-                // For simplicity here, it jumps relative to TODAY's year.
-                load(true); // pass true to skip updating slider value to avoid loop
+                load(true); 
             });
 
             document.getElementById('settingsBtn').addEventListener('click', openSettings);
             document.getElementById('saveEntryBtn').addEventListener('click', saveEvent);
             document.getElementById('saveSettingsBtn').addEventListener('click', savePrice);
+            
+            // Clear All Listener
+            clearAllBtn.addEventListener('click', clearAllData);
+
+            // Toggle Total View
+            totalCard.addEventListener('click', () => {
+                showAllTimeTotal = !showAllTimeTotal;
+                load();
+            });
 
             closeButtons.forEach(btn => btn.addEventListener('click', closeAllModals));
             
@@ -572,15 +609,13 @@
 
             monthDisplay.innerText = `${dt.toLocaleDateString('en-us', { month: 'long' })} ${year}`;
             
-            // Update slider position if navigation wasn't triggered by the slider
             if(!skipSliderUpdate) {
-                // Determine if we are in current year to make slider relevant
                 const today = new Date();
                 if(year === today.getFullYear()) {
                     monthSlider.value = month;
                     monthSlider.disabled = false;
                 } else {
-                    monthSlider.disabled = true; // Disable slider if viewing past/future years to avoid confusion
+                    monthSlider.disabled = true; 
                 }
             }
 
@@ -622,12 +657,29 @@
 
             daysCountEl.innerText = monthlyCount;
             totalQtyEl.innerText = parseFloat(monthlyQty.toFixed(2));
-            const totalVal = monthlyQty * pricePerLiter;
-            totalAmtEl.innerText = totalVal.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+            
+            // Total vs All-Time Logic
+            if (showAllTimeTotal) {
+                let grandQty = 0;
+                Object.keys(events).forEach(key => {
+                   if(events[key] && events[key].qty) {
+                       grandQty += parseFloat(events[key].qty);
+                   } 
+                });
+                const grandTotal = grandQty * pricePerLiter;
+                
+                totalAmtEl.innerText = grandTotal.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                totalLabel.innerText = "Total (All Time)";
+                totalCard.style.border = "1px solid rgba(0, 255, 157, 0.5)"; 
+            } else {
+                const totalVal = monthlyQty * pricePerLiter;
+                totalAmtEl.innerText = totalVal.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                totalLabel.innerText = "Total (Month)";
+                totalCard.style.border = "1px solid transparent";
+            }
         }
 
         function updateQtyUI(val) {
-            // Clamp value
             if (val < 0) val = 0;
             if (val > 10) val = 10;
             
@@ -635,11 +687,9 @@
             qtySlider.value = val;
             qtyDisplay.innerText = val;
             
-            // Update cost preview
             const cost = val * pricePerLiter;
             dailyCostDisplay.innerText = pricePerLiter > 0 ? `${cost.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}` : '';
 
-            // Auto-check toggle if qty > 0
             if (val > 0) milkToggle.checked = true;
         }
 
@@ -654,7 +704,7 @@
                 milkNote.value = eventForDay.note || '';
             } else {
                 milkToggle.checked = true;
-                updateQtyUI(1.0); // Default 1L
+                updateQtyUI(1.0);
                 milkNote.value = '';
             }
             entryModal.classList.add('open');
@@ -692,9 +742,20 @@
                 pricePerLiter = val;
                 localStorage.setItem('milkPrice', pricePerLiter);
                 closeAllModals();
-                load(); // refresh to update totals
+                load(); 
+            }
+        }
+
+        function clearAllData() {
+            if(confirm("Are you sure you want to delete ALL milk history? This cannot be undone.")) {
+                events = {};
+                localStorage.removeItem('milkEvents');
+                // We do NOT remove 'milkPrice' so you don't have to re-enter settings
+                closeAllModals();
+                load();
             }
         }
     </script>
 </body>
 </html>
+
